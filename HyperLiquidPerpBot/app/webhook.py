@@ -75,7 +75,7 @@ class WebhookHandler:
                             
                             # Get the position data - we know the position has just been closed
                             # So we need to use the last known position data
-                            asset = self.exchange_manager.settings.asset_name
+                            asset = self.exchange_manager.asset_name
                             
                             self.db_manager.record_trade(
                                 asset=asset,
