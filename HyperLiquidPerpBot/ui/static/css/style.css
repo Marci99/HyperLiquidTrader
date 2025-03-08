@@ -27,3 +27,38 @@
     font-weight: 500;
     border-top: none;
 }
+
+/* JSON Alert Textarea Styling */
+#alertJson {
+    font-family: monospace;
+    background-color: #f8f9fa;
+    resize: none;
+    white-space: pre;
+    font-size: 0.9rem;
+}
+
+/* API Config Form Styling */
+#api-config-form label,
+#alert-generator-form label {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+#api-config-form input[type="password"],
+#api-config-form input[type="text"] {
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+
+/* Buttons styling */
+#save-api-config,
+#generate-alert {
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#save-api-config:hover,
+#generate-alert:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}

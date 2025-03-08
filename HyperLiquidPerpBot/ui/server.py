@@ -91,6 +91,77 @@ def stop_bot():
             return jsonify({'status': 'error', 'message': str(e)}), 500
     return jsonify({'status': 'error', 'message': 'Bot not initialized'}), 500
 
+@app.route('/api/update_keys', methods=['POST'])
+def update_api_keys():
+    if not bot_instance:
+        return jsonify({'status': 'error', 'message': 'Bot not initialized'}), 500
+    
+    try:
+        data = request.json
+        
+        # Update environment variables
+        if 'privateKey' in data and data['privateKey']:
+            os.environ['HYPERLIQUID_PRIVATE_KEY'] = data['privateKey']
+            # Update the bot instance
+            bot_instance.private_key = data['privateKey']
+        
+        if 'accountAddress' in data and data['accountAddress']:
+            os.environ['HYPERLIQUID_ACCOUNT_ADDRESS'] = data['accountAddress']
+            # Update the bot instance
+            bot_instance.account_address = data['accountAddress']
+        
+        if 'monitoringAddress' in data and data['monitoringAddress']:
+            os.environ['HYPERLIQUID_MONITORING_ADDRESS'] = data['monitoringAddress']
+            # Update the bot instance
+            bot_instance.monitoring_address = data['monitoringAddress']
+        
+        # Optional: Re-initialize the bot with new keys
+        bot_instance.initialize_exchange()
+        
+        logger.info("API keys updated successfully")
+        return jsonify({'status': 'success', 'message': 'API keys updated successfully'})
+    except Exception as e:
+        logger.error(f"Error updating API keys: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/generate_alert', methods=['POST'])
+def generate_alert():
+    try:
+        data = request.json
+        trading_pair = data.get('tradingPair', 'ETH')
+        position_size_percent = float(data.get('positionSize', 10))
+        action = data.get('action', 'BUY')
+        
+        # Get current balance
+        balance = bot_instance.get_account_balance()
+        
+        # Calculate the absolute position size based on percentage
+        position_size = (balance * (position_size_percent / 100))
+        
+        # Format to a reasonable number of decimal places for the asset
+        if trading_pair in ['BTC']:
+            position_size = round(position_size / 30000, 4)  # Example BTC price $30,000
+        elif trading_pair in ['ETH']:
+            position_size = round(position_size / 2000, 4)  # Example ETH price $2,000
+        else:
+            position_size = round(position_size / 100, 4)  # Default divisor
+        
+        # Generate the alert JSON
+        alert_json = {
+            "action": action,
+            "asset": trading_pair,
+            "size": position_size
+        }
+        
+        return jsonify({
+            'status': 'success', 
+            'alert': alert_json,
+            'webhook_url': f"http://your-server:8000/webhook"
+        })
+    except Exception as e:
+        logger.error(f"Error generating alert: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 def run_flask_app(host='0.0.0.0', port=5000):
     app.run(host=host, port=port, debug=False)
 

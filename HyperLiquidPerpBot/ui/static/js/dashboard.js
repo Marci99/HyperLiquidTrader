@@ -198,6 +198,86 @@ fetchOpenPositions();
 fetchTradeHistory();
 fetchBalanceHistory();
 
+// API keys configuration
+document.getElementById('save-api-config').addEventListener('click', function() {
+    const privateKey = document.getElementById('privateKey').value;
+    const accountAddress = document.getElementById('accountAddress').value;
+    const monitoringAddress = document.getElementById('monitoringAddress').value;
+    
+    const data = {
+        privateKey: privateKey,
+        accountAddress: accountAddress,
+        monitoringAddress: monitoringAddress
+    };
+    
+    fetch('/api/update_keys', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('API keys updated successfully!');
+            // Clear the private key field for security
+            document.getElementById('privateKey').value = '';
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating API keys:', error);
+        alert('Error updating API keys. See console for details.');
+    });
+});
+
+// TradingView alert generator
+document.getElementById('generate-alert').addEventListener('click', function() {
+    const tradingPair = document.getElementById('tradingPair').value;
+    const positionSize = document.getElementById('positionSize').value;
+    const action = document.getElementById('action').value;
+    
+    const data = {
+        tradingPair: tradingPair,
+        positionSize: positionSize,
+        action: action
+    };
+    
+    fetch('/api/generate_alert', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            const jsonTextarea = document.getElementById('alertJson');
+            const alertJson = result.alert;
+            
+            // Format the JSON with instructions
+            const webhookUrl = result.webhook_url;
+            const instructionsJson = {
+                "// Instructions": "Copy this JSON to your TradingView alert message",
+                "// Webhook URL": webhookUrl,
+                "// Set Content Type": "application/json",
+                ...alertJson
+            };
+            
+            jsonTextarea.value = JSON.stringify(instructionsJson, null, 2);
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error generating alert:', error);
+        alert('Error generating alert. See console for details.');
+    });
+});
+
 // Set up auto-refresh
 setInterval(() => {
     fetchBotStatus();
