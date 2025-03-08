@@ -137,18 +137,34 @@ class ExchangeManager:
             logger.error(f"Error closing position: {e}")
             return False, 0.0
     
-    def handle_action(self, action: str):
+    def handle_action(self, action: str, size=None, asset=None):
         """Process trading actions received from webhooks"""
         try:
-            logger.info(f"Processing action: {action}")
+            logger.info(f"Processing action: {action}, size: {size}, asset: {asset}")
+            
+            # Override asset name if provided
+            if asset:
+                current_asset = self.asset_name
+                self.asset_name = asset
+                logger.info(f"Temporarily changing asset from {current_asset} to {asset}")
             
             if action.upper() == "BUY":
-                size = self.calculate_max_position_size()
+                # Use provided size or calculate if not provided
+                if size is None:
+                    size = self.calculate_max_position_size()
+                else:
+                    size = float(size)  # Convert to float in case it's a string
+                
                 success, position = self.open_position(is_buy=True, size=size)
                 return success, f"Opened BUY position: {position}"
                 
             elif action.upper() == "SELL":
-                size = self.calculate_max_position_size()
+                # Use provided size or calculate if not provided
+                if size is None:
+                    size = self.calculate_max_position_size()
+                else:
+                    size = float(size)  # Convert to float in case it's a string
+                
                 success, position = self.open_position(is_buy=False, size=size)
                 return success, f"Opened SELL position: {position}"
                 
@@ -157,8 +173,11 @@ class ExchangeManager:
                 positions = self.get_open_positions()
                 if len(positions) > 0:
                     position = positions[0]
+                    # Use provided size or use position's size
+                    close_size = float(size) if size is not None else position["size"]
+                    
                     success, pnl = self.close_position(
-                        size=position["size"],
+                        size=close_size,
                         entry_px=position["entryPrice"],
                         is_buy=(position["direction"] == "BUY")
                     )

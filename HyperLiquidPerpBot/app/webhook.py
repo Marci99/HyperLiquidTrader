@@ -34,9 +34,11 @@ class WebhookHandler:
                 raise HTTPException(status_code=400, detail="Missing 'action' field in payload")
             
             action = payload["action"]
+            size = payload.get("size", None)  # Get size if provided
+            asset = payload.get("asset", None)  # Get asset if provided
             
             # Execute the action on the exchange - note this is synchronous
-            success, result = self.exchange_manager.handle_action(action)
+            success, result = self.exchange_manager.handle_action(action, size=size, asset=asset)
             
             if success:
                 logger.info(f"Action executed successfully: {result}")
