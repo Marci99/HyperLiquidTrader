@@ -52,6 +52,8 @@ class WebhookHandler:
                             # Extract position data - in a real implementation, 
                             # this would be a proper object
                             position_str = result.split("position: ")[1].strip("}")
+                            # Clean up the string to ensure it's valid JSON
+                            position_str = position_str.replace("'", "\"")
                             position_data = json.loads(position_str + "}")
                             
                             self.db_manager.record_trade(
