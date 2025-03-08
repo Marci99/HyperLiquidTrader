@@ -35,7 +35,7 @@ class WebhookHandler:
             
             action = payload["action"]
             
-            # Execute the action on the exchange
+            # Execute the action on the exchange - note this is synchronous
             success, result = self.exchange_manager.handle_action(action)
             
             if success:
@@ -115,4 +115,5 @@ async def webhook_endpoint(request: Request):
     if webhook_handler is None:
         raise HTTPException(status_code=500, detail="Webhook handler not initialized")
     
-    return await webhook_handler.handle_webhook(request)
+    result = await webhook_handler.handle_webhook(request)
+    return result
