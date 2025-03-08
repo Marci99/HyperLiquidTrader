@@ -1,0 +1,29 @@
+.status-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+.status-active {
+    background-color: #28a745;
+}
+.status-inactive {
+    background-color: #dc3545;
+}
+.card {
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e3e6f0;
+}
+.table {
+    margin-bottom: 0;
+}
+.table th {
+    font-weight: 500;
+    border-top: none;
+}

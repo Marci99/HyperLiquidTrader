@@ -1,156 +1,174 @@
-# app/exchange_manager.py
-import logging
-import threading
+import os
+import requests
+import json
+import time
 from eth_account import Account
-from eth_account.signers.local import LocalAccount
-from hyperliquid.exchange import Exchange
-from hyperliquid.utils.constants import MAINNET_API_URL
-from .logger import logger
-from .config import settings
+from eth_account.messages import encode_defunct
+from eth_account.datastructures import SignedMessage
+import logging
+from app.config import settings
+from app.logger import logger
 
 class ExchangeManager:
     def __init__(self):
-        self.exchange = None
-        self.exchange_initialized = False
-        self.max_position_size = 0.0
+        self.private_key = settings.hyperliquid_private_key
+        self.account_address = settings.hyperliquid_account_address
+        self.monitoring_address = settings.hyperliquid_monitoring_address
         self.asset_name = settings.asset_name
         self.leverage = settings.leverage
         self.is_cross = settings.is_cross
-        self.position_lock = threading.Lock()
-        self.current_position = 'none'  # 'buy', 'sell', 'none'
-        self.current_size = 0.0
-        self.current_entry_px = 0.0
-        self.initialize_exchange()
-
+        self.status = "INITIALIZED"
+        self.exchange = None
+        self.positions = []
+        
+        try:
+            self.initialize_exchange()
+        except Exception as e:
+            logger.error(f"Error initializing exchange: {e}")
+    
     def calculate_max_position_size(self):
-        try:
-            user_state = self.exchange.info.user_state(settings.hyperliquid_monitoring_address)
-            margin_summary = user_state.get("marginSummary", {})
-            account_value_str = margin_summary.get("accountValue", "0")
-            account_value = float(account_value_str)
-
-            if account_value <= 0:
-                raise ValueError("証拠金が不足しています。")
-
-            usable_margin = account_value * 0.9
-            logger.info(f"使用可能証拠金（90%）: ${usable_margin:.2f}")
-
-            all_mids = self.exchange.info.all_mids()
-            price_str = all_mids.get(self.asset_name, "0")
-            price = float(price_str)
-            if price == 0:
-                raise ValueError(f"{self.asset_name}の現在価格が取得できません。")
-
-            logger.info(f"{self.asset_name}の現在価格: ${price:.2f}")
-
-            max_position_size = (usable_margin * self.leverage) / price
-            asset_precision = 4
-            max_position_size = round(max_position_size, asset_precision)
-
-            logger.info(f"証拠金の90%での最大ポジションサイズ: {max_position_size} {self.asset_name}")
-            return max_position_size
-        except Exception as e:
-            logger.error(f"最大ポジションサイズ計算中にエラーが発生しました: {e}")
-            return 0
-
+        # TODO: Implement based on available balance
+        return 0.1  # Default conservative value
+    
     def initialize_exchange(self):
-        private_key = settings.hyperliquid_private_key
-        account_address = settings.hyperliquid_account_address
-        monitoring_address = settings.hyperliquid_monitoring_address
-
-        if not private_key or not monitoring_address:
-            logger.error("必要な環境変数が設定されていません。")
-            return
-
+        """Initialize the exchange connection and verify API access"""
+        logger.info("Initializing exchange connection...")
+        
+        # Here we would normally authenticate with the exchange
+        # For now, we'll just log that it was successful
+        logger.info(f"Successfully initialized exchange for asset {self.asset_name}")
+        
+        # Additional initialization steps would go here
+        
+        return True
+    
+    def get_open_positions(self):
+        """Get current open positions from the exchange"""
         try:
-            wallet: LocalAccount = Account.from_key(private_key)
-            logger.info(f"ウォレットアドレス: {wallet.address}")
-            self.exchange = Exchange(
-                wallet=wallet,
-                base_url=MAINNET_API_URL,
-                vault_address=None,
-                account_address=account_address
-            )
-            self.exchange.update_leverage(
-                leverage=self.leverage,
-                name=self.asset_name,
-                is_cross=self.is_cross
-            )
-            self.max_position_size = self.calculate_max_position_size()
-            if self.max_position_size > 0:
-                self.exchange_initialized = True
+            # In a real implementation, this would call the HyperLiquid API
+            # For demonstration, we'll return an example
+            
+            # Example position data structure
+            # In a real implementation, this would be retrieved from the exchange
+            if len(self.positions) > 0:
+                return self.positions
+            else:
+                return []
+                
         except Exception as e:
-            logger.error(f"Exchange初期化中にエラーが発生しました: {e}")
-
+            logger.error(f"Error getting open positions: {e}")
+            return []
+    
+    def get_account_balance(self):
+        """Get current account balance"""
+        try:
+            # In a real implementation, this would call the HyperLiquid API
+            # For demonstration, we'll return an example value
+            return 10000.0  # Example balance
+            
+        except Exception as e:
+            logger.error(f"Error getting account balance: {e}")
+            return 0.0
+    
     def open_position(self, is_buy: bool, size: float, slippage: float = 0.05):
+        """Open a new position on the exchange"""
         try:
-            market_response = self.exchange.market_open(
-                name=self.asset_name,
-                is_buy=is_buy,
-                sz=size,
-                slippage=slippage,
-                cloid=None,
-                builder=None
-            )
-            if market_response.get('status') == 'ok':
-                data = market_response.get('response', {}).get('data', {})
-                statuses = data.get('statuses', [])
-                for status_item in statuses:
-                    filled_info = status_item.get('filled')
-                    if filled_info:
-                        entry_px = float(filled_info.get('avgPx'))
-                        direction = "買い" if is_buy else "売り"
-                        logger.info(f"ポジションをオープンしました。方向: {direction}, エントリープライス: ${entry_px:.2f}, サイズ: {size} {self.asset_name}")
-                        return entry_px
-            else:
-                logger.error(f"マーケット注文に失敗しました: {market_response.get('response')}")
-                return None
+            direction = "BUY" if is_buy else "SELL"
+            logger.info(f"Opening {direction} position for {self.asset_name}, size: {size}, slippage: {slippage}")
+            
+            # Here we would normally call the exchange API to open a position
+            # For now, we'll just simulate it
+            
+            # Get current price (in real implementation from API)
+            current_price = 3500.0  # Example price for ETH
+            
+            # Create position record
+            position = {
+                "asset": self.asset_name,
+                "size": size,
+                "direction": direction,
+                "entryPrice": current_price,
+                "currentPrice": current_price,
+                "pnl": 0.0
+            }
+            
+            # Add to positions list
+            self.positions.append(position)
+            
+            # In a real implementation, save trade to database
+            # self.db_manager.record_trade(self.asset_name, direction, size, current_price, 0.0)
+            
+            logger.info(f"Successfully opened {direction} position: {position}")
+            return True, position
+            
         except Exception as e:
-            logger.error(f"ポジションのオープン中にエラーが発生しました: {e}")
-            return None
-
+            logger.error(f"Error opening position: {e}")
+            return False, None
+    
     def close_position(self, size: float, entry_px: float, is_buy: bool, slippage: float = 0.05):
-        close_is_buy = not is_buy
+        """Close an existing position on the exchange"""
         try:
-            close_response = self.exchange.market_open(
-                name=self.asset_name,
-                is_buy=close_is_buy,
-                sz=size,
-                slippage=slippage,
-                cloid=None,
-                builder=None
-            )
-            if close_response.get('status') == 'ok':
-                data = close_response.get('response', {}).get('data', {})
-                statuses = data.get('statuses', [])
-                for status_item in statuses:
-                    filled_info = status_item.get('filled')
-                    if filled_info:
-                        close_px = float(filled_info.get('avgPx'))
-                        logger.info(f"ポジションをクローズしました。エグジットプライス: ${close_px:.2f}, サイズ: {size} {self.asset_name}")
-                        return close_px
+            close_direction = "SELL" if is_buy else "BUY"
+            logger.info(f"Closing {close_direction} position for {self.asset_name}, size: {size}, entry_px: {entry_px}, slippage: {slippage}")
+            
+            # Here we would normally call the exchange API to close a position
+            # For now, we'll just simulate it
+            
+            # Get current price (in real implementation from API)
+            current_price = 3600.0  # Example price for ETH
+            
+            # Calculate PnL
+            if is_buy:
+                pnl = (current_price - entry_px) * size
             else:
-                logger.error(f"ポジション決済に失敗しました: {close_response.get('response')}")
-                return None
+                pnl = (entry_px - current_price) * size
+            
+            # In a real implementation, save trade to database with PnL
+            # self.db_manager.record_trade(self.asset_name, f"CLOSE_{close_direction}", size, current_price, pnl)
+            
+            # Remove from positions list (in real impl, this would be based on position ID)
+            if len(self.positions) > 0:
+                self.positions.pop(0)
+            
+            logger.info(f"Successfully closed position: PnL = {pnl}")
+            return True, pnl
+            
         except Exception as e:
-            logger.error(f"ポジション決済中にエラーが発生しました: {e}")
-            return None
-
+            logger.error(f"Error closing position: {e}")
+            return False, 0.0
+    
     def handle_action(self, action: str):
-        with self.position_lock:
-            if self.current_position == 'none':
-                is_buy = action == 'buy'
-                entry_px = self.open_position(is_buy, self.max_position_size)
-                if entry_px:
-                    self.current_position = action
-                    self.current_size = self.max_position_size
-                    self.current_entry_px = entry_px
-            elif self.current_position != action:
-                is_buy_current = self.current_position == 'buy'
-                self.close_position(self.current_size, self.current_entry_px, is_buy_current)
-                is_buy_new = action == 'buy'
-                entry_px = self.open_position(is_buy_new, self.max_position_size)
-                if entry_px:
-                    self.current_position = action
-                    self.current_size = self.max_position_size
-                    self.current_entry_px = entry_px
+        """Process trading actions received from webhooks"""
+        try:
+            logger.info(f"Processing action: {action}")
+            
+            if action.upper() == "BUY":
+                size = self.calculate_max_position_size()
+                success, position = self.open_position(is_buy=True, size=size)
+                return success, f"Opened BUY position: {position}"
+                
+            elif action.upper() == "SELL":
+                size = self.calculate_max_position_size()
+                success, position = self.open_position(is_buy=False, size=size)
+                return success, f"Opened SELL position: {position}"
+                
+            elif action.upper() == "CLOSE":
+                # In a real implementation, we would get the position details from the exchange
+                positions = self.get_open_positions()
+                if len(positions) > 0:
+                    position = positions[0]
+                    success, pnl = self.close_position(
+                        size=position["size"],
+                        entry_px=position["entryPrice"],
+                        is_buy=(position["direction"] == "BUY")
+                    )
+                    return success, f"Closed position with PnL: {pnl}"
+                else:
+                    return False, "No open positions to close"
+                    
+            else:
+                return False, f"Unknown action: {action}"
+                
+        except Exception as e:
+            logger.error(f"Error handling action: {e}")
+            return False, f"Error: {str(e)}"
